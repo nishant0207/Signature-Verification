@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 
 function App() {
@@ -7,8 +7,9 @@ function App() {
   const [finalImage, setFinalImage] = useState(null);
   const [outputText, setOutputText] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [previewImage, setPreviewImage] = useState(null); // Large preview image
-  const [errorMessage, setErrorMessage] = useState(""); // Error message state
+  const [previewImage, setPreviewImage] = useState(null);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [accuracy, setAccuracy] = useState(null);
 
   const handleImageUpload = async (event) => {
     const file = event.target.files[0];
@@ -19,22 +20,21 @@ function App() {
       setOutputText("");
       setPreviewImage(null);
       setErrorMessage("");
-  
+
       const formData = new FormData();
       formData.append("file", file);
-  
+
       try {
         console.log("Uploading image...");
         const response = await axios.post("http://localhost:5001/predict", formData);
-  
         console.log("Upload Response:", response.data);
-  
+
         if (response.data.uploaded_image) {
           setSelectedImage(response.data.uploaded_image);
           setPreviewImage(response.data.uploaded_image);
         }
-  
-        // After upload, call processOCR to process image and get processed images
+
+        // Process the image after upload
         await processOCR();
       } catch (error) {
         console.error("Error uploading image:", error);
@@ -48,18 +48,34 @@ function App() {
   // Call the backend processing API
   const processOCR = async () => {
     try {
+      console.log("Processing OCR...");
       const response = await axios.post("http://localhost:5001/process_ocr");
   
       console.log("OCR Process Response:", response.data);
+      console.log(`OCR Processed Image: ${response.data.ocr_processed_image}`);
+      console.log(`Line Sweep Image: ${response.data.line_sweep_image}`);
+      console.log(`Prediction Accuracy: ${response.data.accuracy}`);
   
       if (response.data) {
+        const timestamp = new Date().getTime(); // Unique timestamp to avoid cached images
+  
         setProcessingImages([
-          response.data.ocr_processed_image, // Extracted signature
-          response.data.line_sweep_image // LineSweep processed signature
+          response.data.ocr_processed_image
+            ? `${response.data.ocr_processed_image}?t=${timestamp}`
+            : null,
+          response.data.line_sweep_image
+            ? `${response.data.line_sweep_image}?t=${timestamp}`
+            : null,
         ].filter(Boolean)); // Remove null values
   
-        setFinalImage(response.data.final_processed_signature); // Ensure extracted signature is shown
+        setFinalImage(
+          response.data.final_processed_signature
+            ? `${response.data.final_processed_signature}?t=${timestamp}`
+            : null
+        );
+  
         setOutputText(response.data.final_result);
+        setAccuracy(response.data.accuracy); // Store accuracy in state
         setIsProcessing(false);
       }
     } catch (error) {
@@ -96,7 +112,7 @@ function App() {
         {/* Error Message */}
         {errorMessage && (
           <p className="mt-3 p-2 bg-red-500 text-white shadow-md rounded-md text-center">
-            ❌ {errorMessage}
+            {errorMessage}
           </p>
         )}
 
@@ -126,6 +142,10 @@ function App() {
                     alt={`Processing Stage ${index + 1}`}
                     className="w-40 h-auto border rounded-md shadow-md cursor-pointer"
                     onClick={() => setPreviewImage(img)}
+                    onError={(e) => {
+                      console.error("Error loading image:", img);
+                      e.target.src = "fallback_image.png"; // Provide a fallback image
+                    }}
                   />
                 )
               ))}
@@ -140,14 +160,20 @@ function App() {
           </p>
         )}
 
-
         {/* Final Prediction */}
         {outputText && (
           <div className="mt-5">
             <h2 className="text-lg font-semibold">Final Prediction:</h2>
             <p className="mt-3 p-2 bg-white shadow-md rounded-md text-center text-black font-bold">
-              {outputText.includes("Forged") ? "❌ " : "✅ "} {outputText}
+              {outputText}
             </p>
+
+            {/* Accuracy Display */}
+            {accuracy && (
+              <p className="mt-2 p-2 bg-green-500 text-white shadow-md rounded-md text-center font-bold">
+                🎯 Accuracy: {accuracy}
+              </p>
+            )}
           </div>
         )}
 
@@ -162,7 +188,7 @@ function App() {
               onClick={() => setPreviewImage(finalImage)}
             />
             <p className="mt-3 p-2 bg-white shadow-md rounded-md text-center text-black font-bold">
-              {outputText.includes("Forged") ? "❌ " : "✅ "} {outputText}
+            {outputText}
             </p>
           </div>
         )}

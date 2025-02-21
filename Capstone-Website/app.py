@@ -12,103 +12,117 @@ from flask_cors import CORS
 import lineSweep
 import svm
 import ocr
+import atexit
+import shutil
+import logging
 
-# Initialize Flask App
+
 app = Flask(__name__)
 CORS(app)
 
-# Define directories
+logger = logging.getLogger(__name__)
+
+# map directories
 UPLOAD_FOLDER = 'static/uploads'
 OCR_RESULTS_FOLDER = 'static/OCR_Results'
 LINESWEEP_RESULTS_FOLDER = 'static/LineSweep_Results'
 
 app.config['SECRET_KEY'] = 'nishantdalal'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
 
-# Ensure directories exist
+# create directories if does not exists
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OCR_RESULTS_FOLDER, exist_ok=True)
 os.makedirs(LINESWEEP_RESULTS_FOLDER, exist_ok=True)
 
-# Configure Tesseract Path (Modify as per system)
+# configure tesseract path
 pytesseract.pytesseract.tesseract_cmd = "/opt/homebrew/bin/tesseract"
 
-# Load SVM Model
+# loading svm
 try:
     model = pickle.load(open("../Code_Directory/Verification_Phase/SVM/model.pkl", "rb"))
     scaler = pickle.load(open("../Code_Directory/Verification_Phase/SVM/scaler.pkl", "rb"))
-    print("Model and Scaler Loaded Successfully.")
+    logger.info("model and scaler loaded.")
 except FileNotFoundError:
-    print("Error: Model or Scaler file not found.")
+    logger.error("model or scaler file not found.")
     model, scaler = None, None
 
+
 def allowed_file(filename):
-    """Check if the file type is allowed."""
+    """check if the file type is allowed."""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+
 def extract_features(image_path):
-    """Extract features for prediction."""
+    """extract features for prediction."""
     try:
-        print(f"🔍 Extracting features from: {image_path}")
+        logger.info(f"extracting features from: {image_path}")
         preprocessed_image = preproc.preproc(image_path, display=False)
         if preprocessed_image is None:
+            logger.info("processed image not found.")
             return None
 
         features_result = features.get_contour_features(preprocessed_image.copy(), display=False)
         if features_result is None:
+            logger.info("features result not found.")
             return None
 
+        logger.info(f"features result: {features_result}")
+
+        # extract features
         aspect_ratio, bounding_rect_area, convex_hull_area, contours_area = features_result
         hash_val = int(str(imagehash.phash(Image.open(image_path))), 16)
         ratio = features.Ratio(preprocessed_image.copy())
         centroid_0, centroid_1 = features.Centroid(preprocessed_image.copy())
         eccentricity, solidity = features.EccentricitySolidity(preprocessed_image.copy())
         (skew_0, skew_1), (kurt_0, kurt_1) = features.SkewKurtosis(preprocessed_image.copy())
-
-        return np.array([[aspect_ratio, convex_hull_area / bounding_rect_area, contours_area / bounding_rect_area, ratio,
+        
+        features_final_result = np.array([[aspect_ratio, convex_hull_area / bounding_rect_area, contours_area / bounding_rect_area, ratio,
                           centroid_0, centroid_1, eccentricity, solidity, skew_0, skew_1, kurt_0, kurt_1, hash_val]])
+        
+        logger.info(features_final_result)
+        return features_final_result
     except Exception as e:
-        print(f"⚠️ Error extracting features: {e}")
+        logger.info(f"error fetching features: {e}")
         return None
     
 
 @app.route('/process_ocr', methods=['POST'])
 def process_image():
     """Processes the image through OCR, Line Sweep, and SVM Verification."""
-    print("Processing OCR and LineSweep...")
+    
+    logger.info("Processing OCR and LineSweep...")
 
-    ocr.ocr_algo()  # Run OCR
-    lineSweep.lineSweep_algo()  # Run LineSweep
-    result = svm.svm_algo()  # Run SVM Model
+    ocr_result = ocr.ocr_algo()
+    processed_signature = lineSweep.lineSweep_algo()
+    result, accuracy = svm.svm_algo()
 
     # Classify the signature
-    final_result = "Genuine Signature ✅" if result == "Genuine" else "Forged Signature ❌"
+    final_result = "Genuine Signature" if result == "Genuine" else "Forged Signature"
 
-    # Ensure we correctly get the extracted signature (latest OCR result)
-    extracted_signature = get_latest_file(OCR_RESULTS_FOLDER)
-    
     # Get the latest images for processing
     uploaded_image = get_latest_file(UPLOAD_FOLDER)
-    ocr_processed_image = extracted_signature  # Ensure correct extracted signature
+    ocr_processed_image = get_latest_file(OCR_RESULTS_FOLDER)
     line_sweep_image = get_latest_file(LINESWEEP_RESULTS_FOLDER)
 
     response = {
-        "uploaded_image": uploaded_image,  
-        "ocr_processed_image": ocr_processed_image,  # Corrected extracted signature
-        "line_sweep_image": line_sweep_image,  
+        "process_image": "success",
+        "uploaded_image": uploaded_image,
+        "ocr_processed_image": ocr_processed_image,
+        "line_sweep_image": line_sweep_image,
         "final_result": final_result,
-        "final_processed_signature": extracted_signature  # Ensure correct final signature
+        "accuracy": f"{accuracy:.2f}%"
     }
 
-    print(f"🔹 Backend Response: {response}")  # Debugging
+    logger.info(f"OCR result: {response}")
     return jsonify(response)
 
 
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    """Handles image upload and starts prediction."""
+    """handles image upload and starts prediction."""
     if 'file' not in request.files:
         return jsonify({"error": "No file provided"}), 400
 
@@ -121,7 +135,7 @@ def predict():
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(file_path)
 
-        print(f"📂 File saved at: {file_path}")
+        print(f"file saved at: {file_path}")
 
         # Extract Features
         features_data = extract_features(file_path)
@@ -133,21 +147,21 @@ def predict():
 
         # Scale Features and Predict
         try:
-            print("⚙️ Scaling features and making prediction...")
+            print("scaling features and making prediction...")
             features_scaled = scaler.transform(features_data)
             prediction = model.predict(features_scaled)
-            result = "Genuine Signature ✅" if prediction[0] == 1 else "Forged Signature ❌"
+            result = "Genuine Signature" if prediction[0] == 1 else "Forged Signature"
 
-            print(f"📌 Sending response to frontend: {result}")
+            print(f"sending response to frontend: {result}")
 
             response = {
                 "uploaded_image": f"http://localhost:5001/static/uploads/{filename}",
                 "prediction": result
             }
-            print(f"🔹 Backend Response: {response}")  # Debugging
+            print(f"prediction result: {response}")  # Debugging
             return jsonify(response)
         except Exception as e:
-            print(f"⚠️ Prediction error: {e}")
+            print(f"prediction error: {e}")
             return jsonify({"error": f"Prediction error: {str(e)}"}), 500
     else:
         return jsonify({"error": "Allowed image types are png, jpg, jpeg, gif"}), 400
@@ -158,13 +172,43 @@ def uploaded_file(filename):
     """Serve uploaded files."""
     return send_from_directory(UPLOAD_FOLDER, filename)
 
+import time
+
 def get_latest_file(directory):
     """Get the most recent file from the specified directory."""
-    files = [f for f in os.listdir(directory) if not f.startswith('.')]
+    files = [f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f)) and not f.startswith('.')]
+
     if not files:
-        return None
+        return None  # Return None if no files are found
+
+    # Sort files by last modification time
     latest_file = max(files, key=lambda f: os.path.getmtime(os.path.join(directory, f)))
-    return f"http://localhost:5001/{directory}/{latest_file}"
+
+    # Force a cache refresh by appending a timestamp
+    timestamp = int(time.time())  # Current timestamp
+    file_url = f"http://localhost:5001/{directory}/{latest_file}?t={timestamp}"  
+
+    return file_url
+
+
+def cleanup_temp_files():
+    """Deletes all temporary files after the program exits."""
+    folders_to_clean = ["static/uploads", "static/OCR_Results", "static/LineSweep_Results"]
+    
+    for folder in folders_to_clean:
+        try:
+            # Remove all files inside the folder but keep the folder itself
+            for filename in os.listdir(folder):
+                file_path = os.path.join(folder, filename)
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+            print(f"temporary files deleted from {folder}")
+        except Exception as e:
+            print(f"error deleting files from {folder}: {e}")
+
+# Register cleanup function to run when the Flask app exits
+atexit.register(cleanup_temp_files)
+
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)

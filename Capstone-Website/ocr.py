@@ -1,8 +1,12 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
 # ocr.py
 try:
     from PIL import Image
 except ImportError:
-    print("Error: Python Imaging Library (PIL) is not installed")
+    logger.info("Error: Python Imaging Library (PIL) is not installed")
     raise ImportError("Please install PIL/Pillow using: pip install Pillow")
 # ... existing code ...
 
@@ -167,7 +171,7 @@ def ocr_algo():
             cv2.imwrite(os.path.join(path, s1), cropImg)
 
     # print(str(processed_files) + "/" + str(total_files) + " files processed successfully.")
-    print("Processing Complete.")
+    logger.info("processing Complete.")
     # print("You may check the Result folder in the same directory to see the cropped Project_Images.")
     # result.append("OCR Algorithm Successfully completed.")
     return str(result)

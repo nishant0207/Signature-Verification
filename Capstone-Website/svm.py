@@ -274,10 +274,13 @@ def svm_algo():
     result = ""
     if res_genuine > res_forged:
         result = "Genuine"
+        accuracy = res_genuine*100
     else:
         result = "Forged"
+        accuracy = res_forged*100
 
     print("Processing Complete.")
     # print("Final Accuracy SVM: " + (str(float(cor) / (cor + wrong))))
+    
 
-    return result
+    return result, accuracy
