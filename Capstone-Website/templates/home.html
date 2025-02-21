@@ -1,0 +1,81 @@
+
+
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signature Verification</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.1.2/socket.io.js"></script>
+    <script>
+        var socket = io();  // Connect to WebSocket
+        function startVerification() {
+            document.getElementById("status").innerHTML = "🔄 Verification started...";
+            socket.emit('start_processing');  // Trigger backend process
+        }
+        function startDetection() {
+            document.getElementById("status").innerHTML = "🔄 Detection started...";
+            socket.emit('start_detection');  // Trigger backend process for detection
+        }
+        socket.on('update', function(data) {
+            let logContainer = document.getElementById("status");
+            logContainer.innerHTML += "<br>" + data.message;  // Append real-time logs
+        });
+        socket.on('final_result', function(data) {
+            document.getElementById("final_result").innerHTML = "<h3>" + data.message + "</h3>";
+        });
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 16px;
+            border: none;
+            cursor: pointer;
+        }
+        .verify-btn {
+            background-color: #28a745;
+            color: white;
+        }
+        .detect-btn {
+            background-color: #007bff;
+            color: white;
+        }
+        .log-container {
+            border: 1px solid black;
+            padding: 10px;
+            height: 200px;
+            overflow: auto;
+            text-align: left;
+            margin-top: 20px;
+        }
+        #final_result {
+            margin-top: 20px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    {% extends "template.html" %} 
+    {% block content %}
+    <h1>Signature Verification & Detection</h1>
+    
+    <p>Select an option below:</p>
+    
+    <button class="verify-btn" onclick="startVerification()">Start Verification</button>
+    <button class="detect-btn" onclick="startDetection()">Start Detection</button>
+    <h2>Processing Logs:</h2>
+    <div id="status" class="log-container"></div>
+    <div id="final_result"></div>
+    {% endblock %}
+</body>
+</html>
