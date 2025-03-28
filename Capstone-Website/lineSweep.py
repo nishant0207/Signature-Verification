@@ -131,6 +131,7 @@ def lineSweep_algo():
                 (255, 0, 0),
                 1,
             )
+            
             temp_np = temp[
                 indexStartX : indexEndX + 1, indexStartY : indexEndY + 1
             ]

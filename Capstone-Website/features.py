@@ -9,7 +9,7 @@ import matplotlib.cm as cm
 from scipy import ndimage
 from skimage.measure import regionprops
 from skimage import io
-from skimage.filters import threshold_otsu  # For finding the threshold for grayscale to binary conversion
+from skimage.filters import threshold_otsu
 
 
 def Ratio(img):

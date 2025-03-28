@@ -18,6 +18,7 @@ import logging
 
 
 app = Flask(__name__)
+
 CORS(app)
 
 logger = logging.getLogger(__name__)
@@ -27,7 +28,7 @@ UPLOAD_FOLDER = 'static/uploads'
 OCR_RESULTS_FOLDER = 'static/OCR_Results'
 LINESWEEP_RESULTS_FOLDER = 'static/LineSweep_Results'
 
-app.config['SECRET_KEY'] = 'nishantdalal'
+# app.config['SECRET_KEY'] = 'nishantdalal'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
 
@@ -98,10 +99,10 @@ def process_image():
     processed_signature = lineSweep.lineSweep_algo()
     result, accuracy = svm.svm_algo()
 
-    # Classify the signature
+    # classify the signature
     final_result = "Genuine Signature" if result == "Genuine" else "Forged Signature"
 
-    # Get the latest images for processing
+    # get the latest images for processing
     uploaded_image = get_latest_file(UPLOAD_FOLDER)
     ocr_processed_image = get_latest_file(OCR_RESULTS_FOLDER)
     line_sweep_image = get_latest_file(LINESWEEP_RESULTS_FOLDER)
@@ -137,7 +138,7 @@ def predict():
 
         print(f"file saved at: {file_path}")
 
-        # Extract Features
+        # extract Features
         features_data = extract_features(file_path)
         if features_data is None:
             return jsonify({"error": "Feature extraction failed"}), 400
@@ -145,7 +146,7 @@ def predict():
         if model is None or scaler is None:
             return jsonify({"error": "Model is not loaded"}), 500
 
-        # Scale Features and Predict
+        # scale Features and Predict
         try:
             print("scaling features and making prediction...")
             features_scaled = scaler.transform(features_data)
@@ -158,7 +159,7 @@ def predict():
                 "uploaded_image": f"http://localhost:5001/static/uploads/{filename}",
                 "prediction": result
             }
-            print(f"prediction result: {response}")  # Debugging
+            print(f"prediction result: {response}")
             return jsonify(response)
         except Exception as e:
             print(f"prediction error: {e}")
@@ -179,13 +180,13 @@ def get_latest_file(directory):
     files = [f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f)) and not f.startswith('.')]
 
     if not files:
-        return None  # Return None if no files are found
+        return None
 
-    # Sort files by last modification time
+    # sort files by last modification time
     latest_file = max(files, key=lambda f: os.path.getmtime(os.path.join(directory, f)))
 
-    # Force a cache refresh by appending a timestamp
-    timestamp = int(time.time())  # Current timestamp
+    # force a cache refresh by appending a timestamp
+    timestamp = int(time.time())  # current timestamp
     file_url = f"http://localhost:5001/{directory}/{latest_file}?t={timestamp}"  
 
     return file_url
@@ -197,7 +198,7 @@ def cleanup_temp_files():
     
     for folder in folders_to_clean:
         try:
-            # Remove all files inside the folder but keep the folder itself
+            # remove all files inside the folder
             for filename in os.listdir(folder):
                 file_path = os.path.join(folder, filename)
                 if os.path.isfile(file_path):
@@ -206,12 +207,32 @@ def cleanup_temp_files():
         except Exception as e:
             print(f"error deleting files from {folder}: {e}")
 
-# Register cleanup function to run when the Flask app exits
+
+
 atexit.register(cleanup_temp_files)
 
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

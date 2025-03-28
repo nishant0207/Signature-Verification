@@ -17,25 +17,21 @@ import features
 import pickle
 
 def svm_algo():
-    genuine_image_filenames = listdir("data/genuine")  # list of names of all the files in directory data/genuine
-    # print("Total Number of Files in genuine folder: " + str(size(genuine_image_filenames)))
-    forged_image_filenames = listdir("data/forged")  # list of names of all the files in directory data/forged
-    # print("Total Number of Files in forged folder: " + str(size(forged_image_filenames)))
-    # print(genuine_image_filenames)
-    # print(forged_image_filenames)
+    genuine_image_filenames = listdir("data/genuine")
+    forged_image_filenames = listdir("data/forged")
     genuine_image_paths = "data/genuine"
     forged_image_paths = "data/forged"
     image_test_paths = "static/LineSweep_Results"
-    #
+
     image_test = listdir("static/LineSweep_Results")
 
     image_features = []
 
-    genuine_image_features = [[] for x in range(29)]  # creates empty list of 29 features.
+    genuine_image_features = [[] for x in range(29)]
     forged_image_features = [[] for x in range(29)]
 
     countSignaturePerUser = 0
-    # Now we will add the file name to the features and group together all signatures of each user
+    # add the file name to the features and group together all signatures of each user
     for name in genuine_image_filenames:
         signature_id = int(name.split('_')[0][-3:])
         # print("signature_id")
@@ -189,12 +185,12 @@ def svm_algo():
         # print(shape(descriptors))
         # print(descriptors)
         k = 500
-        # Ensure the number of clusters (k) does not exceed the number of descriptors
+        # ensure the number of clusters (k) does not exceed the number of descriptors
         if descriptors.shape[0] < k:
             k = descriptors.shape[0]  # Set k to the number of available descriptors
 
-        # Perform k-means clustering
-        if k > 0:  # Only proceed if there are descriptors available
+        # perform k-means clustering
+        if k > 0:  # only proceed if there are descriptors available
             voc, variance = kmeans(descriptors, k, 1)
         else:
             raise ValueError("Not enough descriptors for clustering. Please check your input data.")

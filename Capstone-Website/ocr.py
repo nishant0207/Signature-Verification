@@ -17,32 +17,23 @@ import numpy as np
 
 pytesseract.pytesseract.tesseract_cmd = '/opt/homebrew/bin/tesseract'
 
-# Simple image to string
-# print(pytesseract.image_to_string(Image.open('Cheque083654.jpg')))
 
-# # French text image to string
-# print(pytesseract.image_to_string(Image.open('test-european.jpg'), lang='fra'))
-
-
-# images_dir = "../../../Our_Dataset/Testing"
 images_dir = "static/uploads"
-# print("Hey")
-# images_dir = "../../../Capstone-Website/static/uploads"
-# images_dir = "Data"
-
 
 def ocr_algo():
 
     print("processing image through OCR algo...")
 
-    # images_dir = "image"
+    
     dir_path = os.path.dirname(os.path.abspath(__file__))
-    # print(os.path.dirname(os.path.abspath(__file__)))
+    
     input_path = os.path.join(
         dir_path, images_dir
     )
-    print(input_path)
-    # # Get bounding box estimates
+    
+    print(input_path) 
+    
+    # get bounding box estimates
     please = 0
     sign = 0
     above = 0
@@ -57,9 +48,10 @@ def ocr_algo():
             img = cv2.imread(os.path.join(input_path,filename))
         else:
             continue
+        
         h, w, _ = img.shape  # assumes color image
 
-        # Get verbose data including boxes, confidences, line, page numbers and text
+        # get verbose data including boxes, confidences, line, page numbers and text
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
         lower = np.array([103, 79, 60])
         upper = np.array([129, 255, 255])
@@ -118,6 +110,8 @@ def ocr_algo():
                     #     result.append(str1)
                         result = str1
                 print(result)
+
+                # extract coordinates
                 if d[11].lower() == "please":
                     pleaseCd[0] = int(d[6])
                     pleaseCd[1] = int(d[7])
@@ -132,6 +126,7 @@ def ocr_algo():
                     aboveCd[2] = int(d[8])
                     aboveCd[3] = int(d[9])
                     above = above + 1
+
 
         lengthSign = aboveCd[0] + aboveCd[3] - pleaseCd[0]
         scaleY = 2

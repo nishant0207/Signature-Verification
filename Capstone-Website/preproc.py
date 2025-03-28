@@ -19,7 +19,7 @@ def rgbgrey(img):
 
 
 def greybin(img):
-    # Converts grayscale to binary
+    # converts grayscale to binary
     blur_radius = 0.8
     img = ndimage.gaussian_filter(img, blur_radius)  # to remove small components or noise
 #     img = ndimage.binary_erosion(img).astype(img.dtype)
@@ -44,8 +44,8 @@ def preproc(path, img=None, display=True):
         plt.imshow(binimg, cmap=matplotlib.cm.Greys_r)
         plt.show()
     r, c = np.where(binimg == 1)
-    # Now we will make a bounding box with the boundary as the position of pixels on extreme.
-    # Thus we will get a cropped image with only the signature part.
+    # now we will make a bounding box with the boundary as the position of pixels on extreme.
+    # thus we will get a cropped image with only the signature part.
     signimg = binimg[r.min(): r.max(), c.min(): c.max()]
     if display:
         plt.imshow(signimg, cmap=matplotlib.cm.Greys_r)
