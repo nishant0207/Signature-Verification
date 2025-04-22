@@ -11,6 +11,8 @@ function App() {
   const [errorMessage, setErrorMessage] = useState("");
   const [accuracy, setAccuracy] = useState(null);
 
+  const getCacheBuster = () => new Date().getTime();
+
   const handleImageUpload = async (event) => {
     const file = event.target.files[0];
     if (file) {
@@ -20,6 +22,7 @@ function App() {
       setOutputText("");
       setPreviewImage(null);
       setErrorMessage("");
+      setAccuracy(null);
 
       const formData = new FormData();
       formData.append("file", file);
@@ -34,7 +37,6 @@ function App() {
           setPreviewImage(response.data.uploaded_image);
         }
 
-        // Process the image after upload
         await processOCR();
       } catch (error) {
         console.error("Error uploading image:", error);
@@ -45,37 +47,29 @@ function App() {
     }
   };
 
-  // Call the backend processing API
+  // backend processing API
   const processOCR = async () => {
     try {
       console.log("Processing OCR...");
       const response = await axios.post("http://localhost:5001/process_ocr");
-  
+
       console.log("OCR Process Response:", response.data);
-      console.log(`OCR Processed Image: ${response.data.ocr_processed_image}`);
-      console.log(`Line Sweep Image: ${response.data.line_sweep_image}`);
-      console.log(`Prediction Accuracy: ${response.data.accuracy}`);
-  
+
       if (response.data) {
-        const timestamp = new Date().getTime(); // Unique timestamp to avoid cached images
-  
-        setProcessingImages([
-          response.data.ocr_processed_image
-            ? `${response.data.ocr_processed_image}?t=${timestamp}`
-            : null,
-          response.data.line_sweep_image
-            ? `${response.data.line_sweep_image}?t=${timestamp}`
-            : null,
-        ].filter(Boolean)); // Remove null values
-  
-        setFinalImage(
-          response.data.final_processed_signature
-            ? `${response.data.final_processed_signature}?t=${timestamp}`
-            : null
-        );
-  
+        // Set the processing images directly from base64 data
+        const newProcessingImages = [
+          response.data.ocr_processed_image || null,
+          response.data.line_sweep_image || null,
+        ].filter(Boolean);
+        
+        setProcessingImages(newProcessingImages);
+        
+        if (newProcessingImages.length > 0) {
+          setPreviewImage(newProcessingImages[0]);
+        }
+
         setOutputText(response.data.final_result);
-        setAccuracy(response.data.accuracy); // Store accuracy in state
+        setAccuracy(response.data.accuracy);
         setIsProcessing(false);
       }
     } catch (error) {
@@ -85,7 +79,7 @@ function App() {
     }
   };
 
-  // Reset state for new upload
+  // reset state for new upload
   const handleNewUpload = () => {
     setSelectedImage(null);
     setProcessingImages([]);
@@ -94,29 +88,35 @@ function App() {
     setIsProcessing(false);
     setPreviewImage(null);
     setErrorMessage("");
+    setAccuracy(null);
   };
 
   return (
     <div className="min-h-screen min-w-screen flex flex-row bg-gray-700 text-white">
-      {/* Left Panel - Controls & Processing Stages */}
+      {/* left Panel - controls & processing stages */}
       <div className="w-1/2 p-5 flex flex-col items-center">
         <h1 className="text-3xl font-bold mb-5">Signature Verification System</h1>
 
-        {/* File Upload */}
+        {/* file upload */}
         {!selectedImage && (
           <div className="mb-5">
-            <input type="file" accept="image/*" onChange={handleImageUpload} className="p-2 border rounded-md bg-white text-black" />
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              className="p-2 border rounded-md bg-white text-black"
+            />
           </div>
         )}
 
-        {/* Error Message */}
+        {/* error message */}
         {errorMessage && (
           <p className="mt-3 p-2 bg-red-500 text-white shadow-md rounded-md text-center">
             {errorMessage}
           </p>
         )}
 
-        {/* Image Preview - Uploaded Image */}
+        {/* image preview*/}
         {selectedImage && (
           <div className="mb-5">
             <h2 className="text-lg font-semibold">Uploaded Image:</h2>
@@ -125,11 +125,15 @@ function App() {
               alt="Uploaded Preview"
               className="w-64 h-auto border rounded-md shadow-md cursor-pointer"
               onClick={() => setPreviewImage(selectedImage)}
+              onError={(e) => {
+                console.error("Error loading uploaded image:", selectedImage);
+                e.target.src = "fallback_image.png"; // Provide a fallback image
+              }}
             />
           </div>
         )}
 
-        {/* Processing Stages */}
+        {/* processing stages */}
         {processingImages.length > 0 && (
           <div className="mb-5">
             <h2 className="text-lg font-semibold">Processing Stages:</h2>
@@ -137,14 +141,14 @@ function App() {
               {processingImages.map((img, index) => (
                 img && (
                   <img
-                    key={index}
+                    key={`${index}`}
                     src={img}
                     alt={`Processing Stage ${index + 1}`}
                     className="w-40 h-auto border rounded-md shadow-md cursor-pointer"
                     onClick={() => setPreviewImage(img)}
                     onError={(e) => {
-                      console.error("Error loading image:", img);
-                      e.target.src = "fallback_image.png"; // Provide a fallback image
+                      console.error("Error loading processing image:", img);
+                      e.target.src = "fallback_image.png";
                     }}
                   />
                 )
@@ -153,14 +157,14 @@ function App() {
           </div>
         )}
 
-        {/* Processing Indicator */}
+        {/* processing indicator */}
         {isProcessing && (
           <p className="mt-3 p-2 bg-yellow-400 text-black shadow-md rounded-md text-center">
             ⏳ Processing...
           </p>
         )}
 
-        {/* Final Prediction */}
+        {/* final prediction */}
         {outputText && (
           <div className="mt-5">
             <h2 className="text-lg font-semibold">Final Prediction:</h2>
@@ -168,7 +172,7 @@ function App() {
               {outputText}
             </p>
 
-            {/* Accuracy Display */}
+            {/* accuracy display */}
             {accuracy && (
               <p className="mt-2 p-2 bg-green-500 text-white shadow-md rounded-md text-center font-bold">
                 🎯 Accuracy: {accuracy}
@@ -177,7 +181,7 @@ function App() {
           </div>
         )}
 
-        {/* Final Image & Output */}
+        {/* final output */}
         {finalImage && (
           <div className="mt-5">
             <h2 className="text-lg font-semibold">Extracted Signature:</h2>
@@ -186,25 +190,40 @@ function App() {
               alt="Final Processed Signature"
               className="w-64 h-auto border rounded-md shadow-md cursor-pointer"
               onClick={() => setPreviewImage(finalImage)}
+              onError={(e) => {
+                console.error("Error loading final image:", finalImage);
+                e.target.src = "fallback_image.png"; // Provide a fallback image
+              }}
             />
             <p className="mt-3 p-2 bg-white shadow-md rounded-md text-center text-black font-bold">
-            {outputText}
+              {outputText}
             </p>
           </div>
         )}
 
-        {/* New Upload Button */}
+        {/* new upload button */}
         {selectedImage && (
-          <button onClick={handleNewUpload} className="mt-5 px-4 py-2 bg-blue-500 hover:bg-blue-700 text-white font-bold rounded-md">
+          <button
+            onClick={handleNewUpload}
+            className="mt-5 px-4 py-2 bg-blue-500 hover:bg-blue-700 text-white font-bold rounded-md"
+          >
             Upload New Image
           </button>
         )}
       </div>
 
-      {/* Right Panel - Large Preview */}
+      {/* right panel */}
       <div className="w-1/2 p-5 flex items-center justify-center bg-black">
         {previewImage ? (
-          <img src={previewImage} alt="Large Preview" className="w-full h-auto border rounded-md shadow-md" />
+          <img
+            src={previewImage}
+            alt="Large Preview"
+            className="w-full h-auto border rounded-md shadow-md"
+            onError={(e) => {
+              console.error("Error loading preview image:", previewImage);
+              e.target.src = "fallback_image.png"; // Provide a fallback image
+            }}
+          />
         ) : (
           <p className="text-gray-400">Click an image to preview it here.</p>
         )}

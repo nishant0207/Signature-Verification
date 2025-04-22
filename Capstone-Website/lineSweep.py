@@ -1,157 +1,135 @@
 # lineSweep.py
 from PIL import Image
-
-import os
 import numpy as np
 import cv2
+import logging
 
+logger = logging.getLogger(__name__)
 
-def lineSweep_algo():
-    print("processing image through line sweep algo...")
-
-    images_dir = "static/OCR_Results"
-    # images_dir = "image"
-    input_path = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), images_dir
+def process_image(img):
+    """
+    Process image through line sweep algorithm using in-memory image.
+    
+    Args:
+        img: PIL Image object
+        
+    Returns:
+        PIL Image: Processed image with signature isolated
+    """
+    logger.info("Processing image through line sweep algo...")
+    
+    # convert PIL image to numpy array
+    temp = np.array(img)
+    
+    # convert to grayscale
+    grayscale = img.convert("L")
+    _, thresh = cv2.threshold(
+        np.array(grayscale), 128, 255, cv2.THRESH_BINARY_INV
     )
-    total_files = 0
-    processed_files = 0
 
-    for filename in os.listdir(input_path):
-        fileSize = os.stat(os.path.join(input_path
-                                        , filename)).st_size
-        total_files = total_files + 1
-        if fileSize != 0:
-            processed_files = processed_files + 1
-            print("Processing " + filename)
-            img = Image.open(os.path.join(input_path,filename))
-            temp = np.array(img)
+    rows = thresh.shape[0]
+    cols = thresh.shape[1]
 
-            grayscale = img.convert("L")
-            xtra, thresh = cv2.threshold(
-                np.array(grayscale), 128, 255, cv2.THRESH_BINARY_INV
-            )
+    # find starting and ending X coordinates
+    flagx = 0
+    indexStartX = 0
+    indexEndX = 0
 
-            # cv2.imshow('Binary Threshold', thresh)
-            #
-            # cv2.waitKey();
+    for i in range(rows):
+        line = thresh[i, :]
 
-            # thresh = cv2.medianBlur(thresh, 2)
+        if flagx == 0:
+            ele = [255]
+            mask = np.isin(ele, line)
 
-            rows = thresh.shape[0]
-            cols = thresh.shape[1]
+            if True in mask:
+                indexStartX = i
+                flagx = 1
 
-            flagx = 0
-            indexStartX = 0
-            indexEndX = 0
+        elif flagx == 1:
+            ele = [255]
+            mask = np.isin(ele, line)
 
-            for i in range(rows):
-                line = thresh[i, :]
+            if True in mask:
+                indexEndX = i
+            elif indexStartX + 5 > indexEndX:
+                indexStartX = 0
+                flagx = 0
+            else:
+                break
 
-                if flagx == 0:
-                    ele = [255]
-                    mask = np.isin(ele, line)
+    # find starting and ending Y coordinates
+    flagy = 0
+    indexStartY = 0
+    indexEndY = 0
 
-                    if True in mask:
-                        indexStartX = i
-                        flagx = 1
-                        # print('start x: ', indexStartX, flagx)
+    for i in range(cols):
+        line = thresh[:, i]
 
-                elif flagx == 1:
-                    ele = [255]
-                    mask = np.isin(ele, line)
+        if flagy == 0:
+            ele = [255]
+            mask = np.isin(ele, line)
 
-                    if True in mask:
-                        indexEndX = i
-                        # print('end x: ', indexEndX)
-                    elif indexStartX + 5 > indexEndX:
-                        indexStartX = 0
-                        flagx = 0
-                        # print('elif x: ', indexStartX, flagx)
-                    else:
-                        break
+            if True in mask:
+                indexStartY = i
+                flagy = 1
 
-            flagy = 0
-            indexStartY = 0
-            indexEndY = 0
+        elif flagy == 1:
+            ele = [255]
+            mask = np.isin(ele, line)
 
-            for j in range(cols):
-                line = thresh[indexStartX:indexEndX, j : j + 20]
+            if True in mask:
+                indexEndY = i
+            elif indexStartY + 5 > indexEndY:
+                indexStartY = 0
+                flagy = 0
+            else:
+                break
 
-                if flagy == 0:
-                    ele = [255]
-                    mask = np.isin(ele, line)
+    # draw boundary lines for visualization
+    cv2.line(
+        thresh,
+        (indexStartY, indexStartX),
+        (indexEndY, indexStartX),
+        (255, 0, 0),
+        1,
+    )
 
-                    if True in mask:
-                        indexStartY = j
-                        flagy = 1
-                        # print('start y: ', indexStartY, flagy)
+    cv2.line(
+        thresh,
+        (indexStartY, indexEndX),
+        (indexEndY, indexEndX),
+        (255, 0, 0),
+        1,
+    )
 
-                elif flagy == 1:
-                    ele = [255]
-                    mask = np.isin(ele, line)
-
-                    if True in mask:
-                        indexEndY = j
-                        # print('end y: ', indexEndY)
-                    elif indexStartY + 20 > indexEndY:
-                        indexStartY = 0
-                        flagy = 0
-                        # print('elif y: ', indexStartY, flagy)
-                    else:
-                        break
-
-            # print(indexStartX, indexEndX, indexStartY, indexEndY)
-            cv2.line(
-                thresh,
-                (indexStartY, indexStartX),
-                (indexEndY, indexStartX),
-                (255, 0, 0),
-                1,
-            )
-            cv2.line(
-                thresh,
-                (indexStartY, indexEndX),
-                (indexEndY, indexEndX),
-                (255, 0, 0),
-                1,
-            )
-
-            cv2.line(
-                thresh,
-                (indexStartY, indexStartX),
-                (indexStartY, indexEndX),
-                (255, 0, 0),
-                1,
-            )
-            cv2.line(
-                thresh,
-                (indexEndY, indexStartX),
-                (indexEndY, indexEndX),
-                (255, 0, 0),
-                1,
-            )
-            
-            temp_np = temp[
-                indexStartX : indexEndX + 1, indexStartY : indexEndY + 1
-            ]
-
-            # cv2.imshow('New cropped image', temp_np)
-            #
-            # cv2.waitKey();
-
-            path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "LineSweep_Results")
-            if not os.path.exists(path):
-                os.makedirs(path)
-
-            # s1 = "LineSweep_Result_" + filename
-            s1 = "021001_003" + filename[-4:]
-            print(s1)
-            cv2.imwrite(os.path.join(path, s1), temp_np)
-
-    # print(str(processed_files) + "/" + str(total_files) + " files processed successfully")
-    print("Processing Complete.")
-    # print("You may check the Result folder in the same directory to see the cropped Project_Images.")
-
-    return "Line Sweep Algorithm Successfully completed."
+    cv2.line(
+        thresh,
+        (indexStartY, indexStartX),
+        (indexStartY, indexEndX),
+        (255, 0, 0),
+        1,
+    )
+    cv2.line(
+        thresh,
+        (indexEndY, indexStartX),
+        (indexEndY, indexEndX),
+        (255, 0, 0),
+        1,
+    )
+    
+    # crop to the detected signature area
+    temp_np = temp[
+        indexStartX : indexEndX + 1, indexStartY : indexEndY + 1
+    ]
+    
+    # convert numpy array back to PIL image
+    if temp_np.size == 0:
+        logger.warning("LineSweep resulted in empty image, returning original")
+        return img
+        
+    processed_img = Image.fromarray(temp_np)
+    logger.info("LineSweep processing complete.")
+    
+    return processed_img
 

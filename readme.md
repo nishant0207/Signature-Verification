@@ -2,7 +2,7 @@
 
 
 A conceptual model to detect and verify signatures on bank cheques. 
-This is our **Final Year project** at **Thapar Institute of Engineering and Technology.**
+This is our **Final Year project** at **Vellore Institute of Technology, Vellore.**
 
 Handwritten signatures are widely used as a means of personal identification and authentication. Many documents like bank cheques and legal transactions require signature verification. But considering a large number of documents, it is a very difficult and time-consuming task. Therefore, ensuring the necessity for a robust automatic signature verification tool that aims to reduce fraud in all related financial transaction sectors. 
 

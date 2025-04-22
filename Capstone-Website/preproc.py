@@ -6,11 +6,11 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import matplotlib.cm as cm
 from scipy import ndimage
-from skimage.filters import threshold_otsu   # For finding the threshold for grayscale to binary conversion
+from skimage.filters import threshold_otsu
 
 
 def rgbgrey(img):
-    # Converts rgb to grayscale
+    # convert rgb to grayscale
     greyimg = np.zeros((img.shape[0], img.shape[1]))
     for row in range(len(img)):
         for col in range(len(img[row])):
@@ -46,6 +46,52 @@ def preproc(path, img=None, display=True):
     r, c = np.where(binimg == 1)
     # now we will make a bounding box with the boundary as the position of pixels on extreme.
     # thus we will get a cropped image with only the signature part.
+    signimg = binimg[r.min(): r.max(), c.min(): c.max()]
+    if display:
+        plt.imshow(signimg, cmap=matplotlib.cm.Greys_r)
+        plt.show()
+
+    signimg = 255 * signimg
+    signimg = signimg.astype('uint8')
+
+    return signimg
+
+
+def preproc_image(img, display=False):
+    """
+    Process image from PIL Image object instead of file path
+    
+    Args:
+        img: PIL Image object
+        display: whether to display intermediate results
+        
+    Returns:
+        Preprocessed image as numpy array
+    """
+    # convert PIL image to numpy array
+    img_array = np.array(img)
+    
+    if display:
+        plt.imshow(img_array)
+        plt.show()
+        
+    grey = rgbgrey(img_array)
+    if display:
+        plt.imshow(grey, cmap=matplotlib.cm.Greys_r)
+        plt.show()
+        
+    binimg = greybin(grey)
+    if display:
+        plt.imshow(binimg, cmap=matplotlib.cm.Greys_r)
+        plt.show()
+        
+    r, c = np.where(binimg == 1)
+    
+    # handle empty image case
+    if len(r) == 0 or len(c) == 0:
+        return None
+        
+    # crop to signature part
     signimg = binimg[r.min(): r.max(), c.min(): c.max()]
     if display:
         plt.imshow(signimg, cmap=matplotlib.cm.Greys_r)
